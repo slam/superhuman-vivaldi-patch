@@ -1,0 +1,15 @@
+# Don't commit patched extensions
+superhuman-vivaldi-patched/
+*.backup
+*.original
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
