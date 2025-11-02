@@ -115,68 +115,65 @@ let content = fs.readFileSync(bgFile, 'utf8');
 
 console.log('   → Patching offscreen API calls...');
 
-// Patch offscreen API cache operations
 let patches = 0;
 
-const offscreenPatches = [
-    {
-        pattern: /saveResponse:async e=>\{await Object\(([^)]+)\)\(\{type:"ForegroundCache:saveResponse",data:\{args:\[e\.url\]\}\}\)/,
-        replacement: 'saveResponse:async e=>{console.log("[Vivaldi Patch] Bypassing offscreen saveResponse");return;}'
-    },
-    {
-        pattern: /pruneFiles:async\(e=\[\],t\)=>await Object\(([^)]+)\)\(\{type:"ForegroundCache:pruneFiles",data:\{args:\[e,t\]\}\}\)/,
-        replacement: 'pruneFiles:async(e=[],t)=>{console.log("[Vivaldi Patch] Bypassing offscreen pruneFiles");return false;}'
-    },
-    {
-        pattern: /saveFile:async e=>\{await Object\(([^)]+)\)\(\{type:"ForegroundCache:saveFile",data:\{args:\[e\]\}\}\)/,
-        replacement: 'saveFile:async e=>{console.log("[Vivaldi Patch] Bypassing offscreen saveFile");return;}'
-    }
-];
+// Patch 1: Offscreen saveResponse
+const patch1 = content.replace(
+    /saveResponse:async e=>\{await Object\([^)]+\)\(\{type:"ForegroundCache:saveResponse",data:\{args:\[e\.url\]\}\}\)\}/,
+    'saveResponse:async e=>{console.log("[Vivaldi Patch] Bypassing offscreen saveResponse");return;}'
+);
+if (patch1 !== content) { patches++; content = patch1; }
 
-offscreenPatches.forEach(({pattern, replacement}) => {
-    const newContent = content.replace(pattern, replacement);
-    if (newContent !== content) {
-        patches++;
-        content = newContent;
-    }
-});
+// Patch 2: Offscreen pruneFiles
+const patch2 = content.replace(
+    /pruneFiles:async\(e=\[\],t\)=>await Object\([^)]+\)\(\{type:"ForegroundCache:pruneFiles",data:\{args:\[e,t\]\}\}\)/,
+    'pruneFiles:async(e=[],t)=>{console.log("[Vivaldi Patch] Bypassing offscreen pruneFiles");return false;}'
+);
+if (patch2 !== content) { patches++; content = patch2; }
+
+// Patch 3: Offscreen saveFile
+const patch3 = content.replace(
+    /saveFile:async e=>\{await Object\([^)]+\)\(\{type:"ForegroundCache:saveFile",data:\{args:\[e\]\}\}\)\}/,
+    'saveFile:async e=>{console.log("[Vivaldi Patch] Bypassing offscreen saveFile");return;}'
+);
+if (patch3 !== content) { patches++; content = patch3; }
 
 console.log('   → Patching iframe messaging...');
 
-// Patch iframe version
-const iframePatches = [
-    {
-        pattern: /return u=\{saveResponse:async e=>\{const t=e\.url,r=await e\.blob\(\),n=e\.headers\.get\("content-type"\),i=e\.headers\.get\("Content-Security-Policy"\)\|\|null;await sendMessageToIframe\(o,"writeToCache",\{url:t,file:r,contentType:n,contentSecurityPolicy:i\}\)\}/,
-        replacement: 'return u={saveResponse:async e=>{console.log("[Vivaldi Patch] Bypassing iframe saveResponse");return;}'
-    },
-    {
-        pattern: /pruneFiles:async\(e=\[\],t\)=>\{const r=await sendMessageToIframe\(o,"pruneCache",\{filesToKeep:e,timeout:t\}\);return null==r\?void 0:r\.didBankrupt\}/,
-        replacement: 'pruneFiles:async(e=[],t)=>{console.log("[Vivaldi Patch] Bypassing iframe pruneFiles");return false;}'
-    },
-    {
-        pattern: /saveFile:async e=>\{await sendMessageToIframe\(o,"writeToCache",e\)\}/,
-        replacement: 'saveFile:async e=>{console.log("[Vivaldi Patch] Bypassing iframe saveFile");return;}'
-    }
-];
+// Patch 4: iframe saveResponse
+const patch4 = content.replace(
+    /saveResponse:async e=>\{const t=e\.url,r=await e\.blob\(\),n=e\.headers\.get\("content-type"\),i=e\.headers\.get\("Content-Security-Policy"\)\|\|null;await sendMessageToIframe\(o,"writeToCache",\{url:t,file:r,contentType:n,contentSecurityPolicy:i\}\)\}/,
+    'saveResponse:async e=>{console.log("[Vivaldi Patch] Bypassing iframe saveResponse");return;}'
+);
+if (patch4 !== content) { patches++; content = patch4; }
 
-iframePatches.forEach(({pattern, replacement}) => {
-    const newContent = content.replace(pattern, replacement);
-    if (newContent !== content) {
-        patches++;
-        content = newContent;
-    }
-});
+// Patch 5: iframe pruneFiles
+const patch5 = content.replace(
+    /pruneFiles:async\(e=\[\],t\)=>\{const r=await sendMessageToIframe\(o,"pruneCache",\{filesToKeep:e,timeout:t\}\);return null==r\?void 0:r\.didBankrupt\}/,
+    'pruneFiles:async(e=[],t)=>{console.log("[Vivaldi Patch] Bypassing iframe pruneFiles");return false;}'
+);
+if (patch5 !== content) { patches++; content = patch5; }
+
+// Patch 6: iframe saveFile
+const patch6 = content.replace(
+    /saveFile:async e=>\{await sendMessageToIframe\(o,"writeToCache",e\)\}/,
+    'saveFile:async e=>{console.log("[Vivaldi Patch] Bypassing iframe saveFile");return;}'
+);
+if (patch6 !== content) { patches++; content = patch6; }
 
 // Write patched file
 fs.writeFileSync(bgFile, content);
 
-console.log(`   ✅ Applied ${patches} patches`);
+console.log(`   ✅ Applied ${patches}/6 patches`);
 
 // Verify
 const patchCount = (content.match(/\[Vivaldi Patch\]/g) || []).length;
-if (patchCount === 0) {
-    console.error('   ❌ Verification failed - no patches found in output!');
-    process.exit(1);
+if (patchCount !== 6) {
+    console.error(`   ⚠️  Warning: Expected 6 patches but found ${patchCount}`);
+    if (patchCount === 0) {
+        console.error('   ❌ No patches applied! Extension may not work.');
+        process.exit(1);
+    }
 }
 PATCHEOF
 
