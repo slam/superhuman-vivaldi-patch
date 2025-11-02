@@ -35,12 +35,33 @@ else
     exit 1
 fi
 
-# Find extension
-EXTENSION_DIR="$VIVALDI_DIR/Default/Extensions/$EXTENSION_ID"
+# Find extension - check Default first, then Profile 1-10
+EXTENSION_DIR=""
+PROFILE_NAME=""
 
-if [ ! -d "$EXTENSION_DIR" ]; then
-    echo "❌ Superhuman extension not found at:"
-    echo "   $EXTENSION_DIR"
+# Check Default profile first
+if [ -d "$VIVALDI_DIR/Default/Extensions/$EXTENSION_ID" ]; then
+    EXTENSION_DIR="$VIVALDI_DIR/Default/Extensions/$EXTENSION_ID"
+    PROFILE_NAME="Default"
+fi
+
+# If not found, check Profile 1 through Profile 10
+if [ -z "$EXTENSION_DIR" ]; then
+    for i in {1..10}; do
+        if [ -d "$VIVALDI_DIR/Profile $i/Extensions/$EXTENSION_ID" ]; then
+            EXTENSION_DIR="$VIVALDI_DIR/Profile $i/Extensions/$EXTENSION_ID"
+            PROFILE_NAME="Profile $i"
+            break
+        fi
+    done
+fi
+
+if [ -z "$EXTENSION_DIR" ]; then
+    echo "❌ Superhuman extension not found in any Vivaldi profile"
+    echo ""
+    echo "Searched in:"
+    echo "   - $VIVALDI_DIR/Default/Extensions/$EXTENSION_ID"
+    echo "   - $VIVALDI_DIR/Profile 1-10/Extensions/$EXTENSION_ID"
     echo ""
     echo "Please install Superhuman in Vivaldi first:"
     echo "  1. Open Vivaldi"
@@ -50,7 +71,7 @@ if [ ! -d "$EXTENSION_DIR" ]; then
     exit 1
 fi
 
-echo "✅ Found Superhuman extension"
+echo "✅ Found Superhuman extension in: $PROFILE_NAME"
 
 # Find the latest version directory
 VERSION_DIR=$(ls -1 "$EXTENSION_DIR" | grep -E '^[0-9]' | sort -V | tail -1)
