@@ -61,11 +61,11 @@ When Superhuman releases a new version:
 
 ## How the Patch Works
 
-The patch replaces three broken cache functions with instant returns:
+Six cache functions across two layers (Chrome offscreen API + iframe messaging) are replaced with no-op bypasses:
 
 **Before (broken in Vivaldi):**
 ```javascript
-pruneFiles: async (e=[], t) => await Object(n.b)({
+pruneFiles: async (e=[], t) => await (0,p.Aq)({
   type: "ForegroundCache:pruneFiles",
   data: { args: [e, t] }
 })
@@ -80,6 +80,18 @@ pruneFiles: async (e=[], t) => {
 ```
 
 This bypasses Vivaldi's broken offscreen iframe messaging while keeping the extension fully functional.
+
+### Why string-anchored, brace-counted matching?
+
+Earlier versions of this patch used a single regex per function body. That broke whenever Superhuman's webpack output drifted: variable renames (`o` → `h`), webpack call-form changes (`Object(n.b)(...)` → `(0,p.Aq)(...)`), or whitespace differences flipped the regex from matching to silently failing. On Superhuman `3.1.60512.2240` the regex-based approach matched **0/6** functions.
+
+The current matcher is more robust:
+
+1. **Locate the function header** by property name (e.g. `pruneFiles:async`) with a parameter-aware regex that balances `(...)` so default values like `e=[]` don't break header detection.
+2. **Brace-match the body**, skipping over string literals. Both block bodies (`=>{...}`) and expression bodies (`=>await foo()`) are supported.
+3. **Verify a stable string anchor** is inside the body (e.g. `"ForegroundCache:pruneFiles"`, `"pruneCache"`) — these message-type literals form a de-facto API contract between background and the offscreen/iframe cache layers, so they survive minifier drift.
+
+The patch should now only break if Superhuman renames its cache message types or restructures the cache architecture, rather than every time a webpack release changes minified output.
 
 ## Trade-offs
 
@@ -141,3 +153,9 @@ This is an unofficial patch. Superhuman and Vivaldi are trademarks of their resp
 ---
 
 **Made with ❤️ for Vivaldi users who want Superhuman**
+
+
+---
+Annotations: 0,5454 SHA-256 ad53818dbe4e704a510b305423b17b90ff6281e3ba452b18e957fbf9d17947e2
+&Claude: 0,5454
+...
